@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSM 학생 프로필</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080c10;
+      --surface: #0e1419;
+      --border: #1e2a38;
+      --accent: #00e5a0;
+      --accent2: #0096ff;
+      --text: #cdd9e5;
+      --muted: #4a5568;
+      --danger: #ff6b6b;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; min-height: 100vh; }
+
+    /* 헤더 */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: rgba(8,12,16,0.95);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .logo { font-family: 'Syne', sans-serif; font-size: 20px; color: var(--accent); letter-spacing: -0.02em; }
+    .logo span { color: var(--text); }
+
+    /* 검색/필터 */
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .controls input, .controls select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .controls input:focus, .controls select:focus { border-color: var(--accent); }
+    .controls input { width: 200px; }
+
+    /* 통계 바 */
+    .stats-bar {
+      padding: 12px 40px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      gap: 24px;
+    }
+    .stat-item span { color: var(--accent); font-weight: 600; }
+
+    /* 그리드 */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+    }
+    .student-card {
+      background: var(--bg);
+      padding: 20px;
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .student-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; height: 100%;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .student-card:hover { background: var(--surface); }
+    .student-card:hover::before { opacity: 1; }
+    .card-num { font-size: 10px; color: var(--muted); margin-bottom: 8px; }
+    .card-name { font-family: 'Syne', sans-serif; font-size: 18px; color: #fff; margin-bottom: 4px; }
+    .card-major { font-size: 11px; color: var(--accent2); margin-bottom: 10px; }
+    .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .tag.club { border-color: #1e3a5f; color: var(--accent2); }
+    .tag.github { border-color: #2a3a2a; color: var(--accent); }
+
+    /* 모달 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+      padding: 28px 28px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-name { font-family: 'Syne', sans-serif; font-size: 28px; color: #fff; }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .modal-body { padding: 24px 28px; }
+    .section { margin-bottom: 24px; }
+    .section-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-row { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 6px; }
+    .info-key { color: var(--muted); width: 80px; flex-shrink: 0; font-size: 11px; }
+    .info-val { color: var(--text); }
+    .club-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .club-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; }
+    .club-dot.auto { background: var(--accent); }
+    .project-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+    .project-name { font-size: 13px; color: #fff; font-weight: 600; }
+    .project-club { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .project-desc { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+    .github-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 13px;
+      border: 1px solid #2a3a2a;
+      padding: 8px 14px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .github-btn:hover { background: #0a1a0a; }
+
+    /* 로딩 */
+    .loading {
+      grid-column: 1/-1;
+      padding: 80px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .loading::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 16px auto 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { grid-column: 1/-1; padding: 60px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* 스크롤바 */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    @media (max-width: 600px) {
+      header { padding: 16px 20px; flex-direction: column; gap: 12px; }
+      .stats-bar { padding: 10px 20px; }
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">GSM<span>.profile</span></div>
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="이름 검색..." oninput="filterStudents()">
+    <select id="majorFilter" onchange="filterStudents()">
+      <option value="">전체 학과</option>
+      <option value="SW_DEVELOPMENT">SW개발</option>
+      <option value="SMART_IOT">스마트IoT</option>
+      <option value="AI">AI</option>
+    </select>
+    <select id="gradeFilter" onchange="filterStudents()">
+      <option value="">전체 학년</option>
+      <option value="1">1학년</option>
+      <option value="2">2학년</option>
+      <option value="3">3학년</option>
+    </select>
+  </div>
+</header>
+
+<div class="stats-bar" id="statsBar">
+  <div>불러오는 중...</div>
+</div>
+
+<div class="grid" id="grid">
+  <div class="loading">학생 데이터 불러오는 중</div>
+</div>
+
+<!-- 모달 -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-name" id="mName"></div>
+        <div class="modal-sub" id="mSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+
+<script>
+  const MAJOR_MAP = { SW_DEVELOPMENT: 'SW개발과', SMART_IOT: '스마트IoT과', AI: 'AI과' };
+  const ROLE_MAP = { STUDENT_COUNCIL: '학생회', DORMITORY_MANAGER: '사감', GENERAL_STUDENT: '일반', GRADUATE: '졸업', WITHDRAWN: '자퇴' };
+
+  let allStudents = [];
+  let allProjects = [];
+
+  async function init() {
+    try {
+      const [sRes, pRes] = await Promise.all([
+        fetch('/api/students?size=500&onlyEnrolled=true').then(r => r.json()),
+        fetch('/api/projects?size=500').then(r => r.json())
+      ]);
+      allStudents = sRes.data?.students || [];
+      allProjects = pRes.data?.projects || [];
+      renderStats(allStudents);
+      renderGrid(allStudents);
+    } catch (e) {
+      document.getElementById('grid').innerHTML = '<div class="empty">데이터를 불러오지 못했어요.</div>';
+    }
+  }
+
+  function renderStats(students) {
+    const sw = students.filter(s => s.major === 'SW_DEVELOPMENT').length;
+    const iot = students.filter(s => s.major === 'SMART_IOT').length;
+    const ai = students.filter(s => s.major === 'AI').length;
+    document.getElementById('statsBar').innerHTML = `
+      <div>총 <span>${students.length}</span>명</div>
+      <div>SW개발 <span>${sw}</span></div>
+      <div>스마트IoT <span>${iot}</span></div>
+      <div>AI <span>${ai}</span></div>
+    `;
+  }
+
+  function renderGrid(students) {
+    const grid = document.getElementById('grid');
+    if (students.length === 0) {
+      grid.innerHTML = '<div class="empty">검색 결과가 없어요.</div>';
+      return;
+    }
+    grid.innerHTML = students.map(s => `
+      <div class="student-card" onclick="openModal(${s.id})">
+        <div class="card-num">${s.studentNumber ?? '졸업/자퇴'}</div>
+        <div class="card-name">${s.name}</div>
+        <div class="card-major">${MAJOR_MAP[s.major] ?? ''} ${s.specialty ? '· ' + s.specialty : ''}</div>
+        <div class="card-tags">
+          ${s.majorClub ? `<span class="tag club">${s.majorClub.name}</span>` : ''}
+          ${s.autonomousClub ? `<span class="tag club">${s.autonomousClub.name}</span>` : ''}
+          ${s.githubId ? `<span class="tag github">@${s.githubId}</span>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function filterStudents() {
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    const major = document.getElementById('majorFilter').value;
+    const grade = document.getElementById('gradeFilter').value;
+    const filtered = allStudents.filter(s => {
+      if (q && !s.name.includes(q)) return false;
+      if (major && s.major !== major) return false;
+      if (grade && s.grade !== parseInt(grade)) return false;
+      return true;
+    });
+    renderStats(filtered);
+    renderGrid(filtered);
+  }
+
+  function openModal(id) {
+    const s = allStudents.find(s => s.id === id);
+    if (!s) return;
+    const myProjects = allProjects.filter(p => p.participants.some(par => par.id === s.id));
+
+    document.getElementById('mName').textContent = s.name;
+    document.getElementById('mSub').textContent = [
+      s.studentNumber,
+      MAJOR_MAP[s.major],
+      s.specialty,
+      ROLE_MAP[s.role]
+    ].filter(Boolean).join(' · ');
+
+    let html = '';
+
+    // 기본 정보
+    html += `<div class="section"><div class="section-label">기본 정보</div>`;
+    if (s.grade) html += `<div class="info-row"><div class="info-key">학년/반/번</div><div class="info-val">${s.grade}학년 ${s.classNum}반 ${s.number}번</div></div>`;
+    html += `<div class="info-row"><div class="info-key">성별</div><div class="info-val">${s.sex === 'MAN' ? '남' : '여'}</div></div>`;
+    if (s.dormitoryRoom) html += `<div class="info-row"><div class="info-key">기숙사</div><div class="info-val">${s.dormitoryFloor}층 ${s.dormitoryRoom}호</div></div>`;
+    html += `</div>`;
+
+    // GitHub
+    if (s.githubId) html += `
+      <div class="section"><div class="section-label">GitHub</div>
+        <a class="github-btn" href="${s.githubUrl}" target="_blank">↗ @${s.githubId}</a>
+      </div>`;
+
+    // 동아리
+    html += `<div class="section"><div class="section-label">동아리</div>`;
+    if (s.majorClub) html += `<div class="club-badge"><div class="club-dot"></div>${s.majorClub.name} <span style="color:var(--muted);font-size:11px">전공</span></div>`;
+    if (s.autonomousClub) html += `<div class="club-badge"><div class="club-dot auto"></div>${s.autonomousClub.name} <span style="color:var(--muted);font-size:11px">자율</span></div>`;
+    if (!s.majorClub && !s.autonomousClub) html += `<div style="color:var(--muted);font-size:12px">소속 동아리 없음</div>`;
+    html += `</div>`;
+
+    // 프로젝트
+    html += `<div class="section"><div class="section-label">프로젝트 (${myProjects.length})</div>`;
+    if (myProjects.length > 0) {
+      html += myProjects.map(p => `
+        <div class="project-item">
+          <div class="project-name">${p.name}</div>
+          ${p.club ? `<div class="project-club">${p.club.name}</div>` : ''}
+          ${p.description ? `<div class="project-desc">${p.description}</div>` : ''}
+        </div>`).join('');
+    } else {
+      html += `<div style="color:var(--muted);font-size:12px">참여 프로젝트 없음</div>`;
+    }
+    html += `</div>`;
+
+    document.getElementById('mBody').innerHTML = html;
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+  }
+  function closeModalDirect() {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDirect(); });
+
+  init();
+</script>
+</body>
+</html>
